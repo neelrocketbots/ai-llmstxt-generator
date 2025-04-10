@@ -2,6 +2,16 @@
 
 A tool to generate AI-optimized llms.txt files for websites to help AI models better understand content structure and context.
 
+## Workflow
+
+<div align="center">
+  <img src="assets/screenshots/1-enter-url.png" alt="1. Enter website URL to begin" width="800"/>
+  <img src="assets/screenshots/2-crawling.png" alt="2. Crawling in progress" width="800"/>
+  <img src="assets/screenshots/3-review.png" alt="3. Review crawled URLs" width="800"/>
+  <img src="assets/screenshots/4-generation.png" alt="4. AI generation in progress" width="800"/>
+  <img src="assets/screenshots/5-download.png" alt="5. llms.txt ready to download" width="800"/>
+</div>
+
 ## Features
 
 - **AI-Powered Descriptions**: Automatically create concise, informative descriptions for each page using ChatGPT 4o mini - chosen for its cost-efficiency and effectiveness for this specific task

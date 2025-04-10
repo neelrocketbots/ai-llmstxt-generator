@@ -12,7 +12,7 @@ A tool to generate AI-optimized llms.txt files for websites to help AI models be
   <img src="assets/screenshots/ai-llmstxt-generator-E.jpg" alt="5. llms.txt ready to download" width="800"/>
 </div>
 
-*Simple 5-step process to generate AI-friendly documentation for your website*
+*Simple 5-step process to generate AI-friendly documentation for your website with visual workflow demonstration*
 
 ## Features
 

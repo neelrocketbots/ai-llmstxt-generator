@@ -5,11 +5,11 @@ A tool to generate AI-optimized llms.txt files for websites to help AI models be
 ## Workflow
 
 <div align="center">
-  <img src="assets/screenshots/1-enter-url.png" alt="1. Enter website URL to begin" width="800"/>
-  <img src="assets/screenshots/2-crawling.png" alt="2. Crawling in progress" width="800"/>
-  <img src="assets/screenshots/3-review.png" alt="3. Review crawled URLs" width="800"/>
-  <img src="assets/screenshots/4-generation.png" alt="4. AI generation in progress" width="800"/>
-  <img src="assets/screenshots/5-download.png" alt="5. llms.txt ready to download" width="800"/>
+  <img src="assets/screenshots/ai-llmstxt-generator-A.jpg" alt="1. Enter website URL to begin" width="800"/>
+  <img src="assets/screenshots/ai-llmstxt-generator-B.jpg" alt="2. Crawling in progress" width="800"/>
+  <img src="assets/screenshots/ai-llmstxt-generator-C.jpg" alt="3. Review crawled URLs" width="800"/>
+  <img src="assets/screenshots/ai-llmstxt-generator-D.jpg" alt="4. AI generation in progress" width="800"/>
+  <img src="assets/screenshots/ai-llmstxt-generator-E.jpg" alt="5. llms.txt ready to download" width="800"/>
 </div>
 
 *Simple 5-step process to generate AI-friendly documentation for your website*

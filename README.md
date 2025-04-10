@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://github.com/rdyplayerB/ai-llmstxt-generator/blob/main/assets/screenshots/ai-llmstxt-generator_hero.png?raw=true" alt="AI llms.txt Generator banner" />
+  <img src="https://github.com/rdyplayerB/ai-llmstxt-generator/blob/main/assets/images/ai-llmstxt-generator_hero.jpg?raw=true" alt="AI llms.txt Generator banner" />
 </p>
 
 # AI-Powered llms.txt Generator

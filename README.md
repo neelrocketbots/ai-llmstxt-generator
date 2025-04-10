@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://github.com/rdyplayerB/ai-llmstxt-generator/blob/main/assets/screenshots/ai-llmstxt-generator_hero.png?raw=true" alt="AI llms.txt Generator banner" />
+</p>
+
 # AI-Powered llms.txt Generator
 
 A tool to generate AI-optimized llms.txt files for websites to help AI models better understand content structure and context.

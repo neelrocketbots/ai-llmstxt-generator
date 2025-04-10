@@ -5,14 +5,22 @@ A tool to generate AI-optimized llms.txt files for websites to help AI models be
 ## Workflow
 
 <div align="center">
-  <img src="assets/screenshots/ai-llmstxt-generator-A.jpg" alt="1. Enter website URL to begin" width="800"/>
-  <img src="assets/screenshots/ai-llmstxt-generator-B.jpg" alt="2. Crawling in progress" width="800"/>
-  <img src="assets/screenshots/ai-llmstxt-generator-C.jpg" alt="3. Review crawled URLs" width="800"/>
-  <img src="assets/screenshots/ai-llmstxt-generator-D.jpg" alt="4. AI generation in progress" width="800"/>
-  <img src="assets/screenshots/ai-llmstxt-generator-E.jpg" alt="5. llms.txt ready to download" width="800"/>
+  <table>
+    <tr>
+      <td align="center"><img src="assets/screenshots/ai-llmstxt-generator-A.jpg" alt="1. Enter website URL to begin" width="400"/><br/><b>1. Enter website URL to begin</b></td>
+      <td align="center"><img src="assets/screenshots/ai-llmstxt-generator-B.jpg" alt="2. Crawling in progress" width="400"/><br/><b>2. Crawling in progress</b></td>
+    </tr>
+    <tr>
+      <td align="center"><img src="assets/screenshots/ai-llmstxt-generator-C.jpg" alt="3. Review crawled URLs" width="400"/><br/><b>3. Review crawled URLs</b></td>
+      <td align="center"><img src="assets/screenshots/ai-llmstxt-generator-D.jpg" alt="4. AI generation in progress" width="400"/><br/><b>4. AI generation in progress</b></td>
+    </tr>
+    <tr>
+      <td align="center" colspan="2"><img src="assets/screenshots/ai-llmstxt-generator-E.jpg" alt="5. llms.txt ready to download" width="400"/><br/><b>5. llms.txt ready to download</b></td>
+    </tr>
+  </table>
 </div>
 
-*Simple 5-step process to generate AI-friendly documentation for your website with visual workflow demonstration*
+*Simple 5-step process to generate AI-friendly documentation for your website*
 
 ## Features
 

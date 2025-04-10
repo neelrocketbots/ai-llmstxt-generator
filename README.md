@@ -12,6 +12,8 @@ A tool to generate AI-optimized llms.txt files for websites to help AI models be
   <img src="assets/screenshots/5-download.png" alt="5. llms.txt ready to download" width="800"/>
 </div>
 
+*Simple 5-step process to generate AI-friendly documentation for your website*
+
 ## Features
 
 - **AI-Powered Descriptions**: Automatically create concise, informative descriptions for each page using ChatGPT 4o mini - chosen for its cost-efficiency and effectiveness for this specific task

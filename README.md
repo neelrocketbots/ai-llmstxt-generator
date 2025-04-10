@@ -20,7 +20,7 @@ A tool to generate AI-optimized llms.txt files for websites to help AI models be
   </table>
 </div>
 
-*Simple 5-step process to generate AI-friendly documentation for your website*
+*Simple 5-step process to generate AI-friendly documentation for your website. Just provide a URL and let the tool do the work!*
 
 ## Features
 

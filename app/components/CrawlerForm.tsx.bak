@@ -1,0 +1,1323 @@
+"use client";
+
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useForm, Controller } from "react-hook-form"; // Keep Controller, remove useFieldArray
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Textarea } from "../components/ui/textarea";
+import { Label } from "../components/ui/label";
+import { Alert, AlertDescription } from "../components/ui/alert";
+import { toast, Toaster } from 'sonner';
+import { ExclamationTriangleIcon, InfoCircledIcon, CheckCircledIcon, CrossCircledIcon, TrashIcon, Pencil1Icon, BookmarkIcon, PlusIcon, UpdateIcon, GearIcon, ChevronDownIcon, ReloadIcon } from "@radix-ui/react-icons";
+import { MAX_URLS_TO_PROCESS } from "../lib/constants";
+import { saveAs } from 'file-saver';
+import { 
+  normalizeUrl, 
+  isValidUrl, 
+  extractDomain, 
+  cn,
+  saveCrawlerState, 
+  loadCrawlerState, 
+  clearCrawlerState,
+  groupUrlsByDomain
+} from '../lib/utils';
+import { 
+  CrawlResult, 
+  WebsiteInput, 
+  CrawlReport, 
+  CrawlAttempt, 
+  UrlProgress
+} from '../lib/types';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter
+} from "../../components/ui/dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from "../../components/ui/tooltip";
+import { 
+  CrawlQueueStatus 
+} from './crawler/CrawlQueueStatus';
+import { createPortal } from 'react-dom';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "../components/ui/tabs";
+import { SavedWebsitesList } from './crawler/SavedWebsitesList';
+import { WebsiteInputContainer } from './crawler/WebsiteInput/WebsiteInputContainer';
+
+// Use a simple checkbox implementation for now
+const Checkbox = ({ id, checked, onCheckedChange, className }: { 
+  id: string; 
+  checked?: boolean; 
+  onCheckedChange?: (checked: boolean) => void;
+  className?: string;
+}) => {
+  return (
+    <div className={`flex h-4 w-4 items-center justify-center rounded-sm border border-primary shadow ${checked ? "bg-primary text-primary-foreground" : "bg-background"} ${className}`}>
+      <input
+        type="checkbox"
+        id={id}
+        checked={checked}
+        onChange={(e) => onCheckedChange?.(e.target.checked)}
+        className="opacity-0 absolute h-4 w-4 cursor-pointer"
+      />
+      {checked && (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-4 w-4 stroke-white">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+      )}
+    </div>
+  );
+};
+
+// Add form validation schema for website
+const websiteSchema = z.object({
+  url: z.string().min(1, "URL is required").refine(
+    isValidUrl,
+    "Please enter a valid URL"
+  ),
+  siteName: z.string().min(1, "Site name is required"),
+    description: z.string().optional()
+});
+
+// Add missing formSchema at the top of the file - before the CrawlerForm component
+const formSchema = z.object({
+  website: websiteSchema,
+  includeScreenshots: z.boolean().default(false),
+});
+
+// Add initialTempWebsiteState at the top of the file - before the CrawlerForm component
+const initialTempWebsiteState: WebsiteInput = { url: '', siteName: '', description: '' };
+
+// Add type for API response
+interface ApiResponse {
+  output_text: string;
+  description: string;
+  metadata: {
+    url: string;
+    title: string;
+    existingDescription: string;
+  };
+}
+
+// Add timeout and retry configuration
+const CRAWL_TIMEOUT = 30000; // 30 seconds
+const MAX_RETRIES = 3;
+
+// Update CurrentStep type to remove 'batch-processing'
+export type CurrentStep = 
+  | 'idle' 
+  | 'crawling' 
+  | 'generating' 
+  | 'reviewing' 
+  | 'error' 
+  | 'initial' 
+  | 'complete';
+
+// Add interface for API response
+interface GenerationResponse {
+  output_text: string;
+  metadata: {
+    url: string;
+    title: string;
+    existingDescription: string;
+  };
+}
+
+// Add a function to get user-friendly error messages based on technical errors
+const getUserFriendlyErrorMessage = (error: Error | string): { message: string; details?: string } => {
+  const errorMessage = typeof error === 'string' ? error : error.message;
+  const errorStack = error instanceof Error ? error.stack : '';
+  
+  // Navigation timeout error
+  if (errorMessage.includes('Navigation timeout') || errorMessage.includes('timeout')) {
+    return {
+      message: "Connection timed out while trying to access the website.",
+      details: "This could be because the site is slow to respond or is blocking automated access. Try again later or check if the site is accessible in your browser."
+    };
+  }
+  
+  // Network error
+  if (errorMessage.includes('net::ERR') || errorMessage.includes('fetch failed')) {
+    return {
+      message: "Unable to connect to the website.",
+      details: "There might be network connectivity issues, or the website may be down. Please check if you can access the site in your browser and try again."
+    };
+  }
+  
+  // Access denied error
+  if (errorMessage.includes('403') || errorMessage.includes('Forbidden') || errorMessage.includes('Access denied')) {
+    return {
+      message: "Access to this website was denied.",
+      details: "The website might be blocking automated access or crawlers. Some websites have security measures that prevent tools like this from accessing their content."
+    };
+  }
+  
+  // CORS error
+  if (errorMessage.includes('CORS') || errorMessage.includes('cross-origin')) {
+    return {
+      message: "The website has content security restrictions.",
+      details: "This website has cross-origin restrictions that prevent our tool from accessing its content."
+    };
+  }
+  
+  // Invalid URL
+  if (errorMessage.includes('Invalid URL') || errorMessage.includes('URL parsing failed')) {
+    return {
+      message: "The URL entered appears to be invalid.",
+      details: "Please check that you've entered a complete and correct website address including the 'https://' part."
+    };
+  }
+  
+  // No pages processed
+  if (errorMessage.includes('no pages could be successfully processed')) {
+    return {
+      message: "No pages could be successfully processed.",
+      details: "This could be due to the website blocking crawlers, using JavaScript that our tool can't process, or having content protection measures in place. Try with a different website or check if the site is publicly accessible."
+    };
+  }
+  
+  // Fallback for unknown errors
+  return {
+    message: "An error occurred while processing the website.",
+    details: "There was a problem crawling this website. This could be due to the site's structure, security measures, or temporary issues. Please try again later."
+  };
+};
+
+// Add this function before the CrawlerForm component definition
+// Function to format time difference in a human-readable format
+function formatTimeDifference(endTime: Date, startTime: Date): string {
+  const diffInMs = endTime.getTime() - startTime.getTime();
+  const seconds = Math.floor(diffInMs / 1000);
+  
+  if (seconds < 60) {
+    return `${seconds} second${seconds !== 1 ? 's' : ''}`;
+  }
+  
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  
+  if (minutes < 60) {
+    return `${minutes} minute${minutes !== 1 ? 's' : ''} ${remainingSeconds} second${remainingSeconds !== 1 ? 's' : ''}`;
+  }
+  
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  
+  return `${hours} hour${hours !== 1 ? 's' : ''} ${remainingMinutes} minute${remainingMinutes !== 1 ? 's' : ''}`;
+}
+
+export default function CrawlerForm() {
+  // Replace the website array state with a single website object
+  const [website, setWebsite] = useState<WebsiteInput>({ url: '', siteName: '', description: '' });
+  const [savedWebsites, setSavedWebsites] = useState<WebsiteInput[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null);
+  const [testModeContainer, setTestModeContainer] = useState<HTMLElement | null>(null);
+
+  // Add useEffect to load saved websites from localStorage
+  useEffect(() => {
+    try {
+      const savedItems = localStorage.getItem('savedWebsites');
+      if (savedItems) {
+        const parsedItems = JSON.parse(savedItems);
+        if (Array.isArray(parsedItems)) {
+          setSavedWebsites(parsedItems);
+          console.log('Loaded saved websites from localStorage:', parsedItems);
+        } else {
+          console.error('Saved websites data is not an array:', parsedItems);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading saved websites from localStorage:', error);
+    }
+  }, []);
+
+  // Add useEffect to save websites to localStorage when they change
+  useEffect(() => {
+    if (savedWebsites.length > 0) {
+      try {
+        localStorage.setItem('savedWebsites', JSON.stringify(savedWebsites));
+        console.log('Saved websites to localStorage:', savedWebsites);
+      } catch (error) {
+        console.error('Error saving websites to localStorage:', error);
+      }
+    }
+  }, [savedWebsites]);
+
+  // Effect to set the portal containers
+  useEffect(() => {
+    const processingModeContainer = document.getElementById('processing-mode-container');
+    if (processingModeContainer) {
+      setPortalContainer(processingModeContainer);
+    }
+    
+    const testModeElem = document.getElementById('test-mode-container');
+    if (testModeElem) {
+      setTestModeContainer(testModeElem);
+    }
+  }, []);
+
+  const handleAddWebsite = (website: WebsiteInput) => {
+    if (savedWebsites.length >= 3) {
+      toast.error("You can only save up to 3 websites at a time.");
+      return;
+    }
+    
+    const normalizedUrlToAdd = normalizeUrl(website.url);
+    const isDuplicate = savedWebsites.some(existingWebsite => normalizeUrl(existingWebsite.url) === normalizedUrlToAdd);
+
+    if (isDuplicate) {
+      toast.error("This website URL is already in the queue.");
+      return;
+    }
+
+    setSavedWebsites([...savedWebsites, website]);
+  };
+
+  // Add function to save a website
+  const handleSaveWebsite = (website: WebsiteInput) => {
+    // Make sure we're using a normalized version of the website object
+    const normalizedWebsite = {
+      siteName: website.siteName.trim(),
+      url: website.url.trim(),
+      description: website.description?.trim() || ''
+    };
+    
+    // Check if website with same URL already exists
+    const existingIndex = savedWebsites.findIndex(
+      (saved) => saved.url === normalizedWebsite.url
+    );
+    
+    if (existingIndex >= 0) {
+      // Update existing website
+      const updatedWebsites = [...savedWebsites];
+      updatedWebsites[existingIndex] = normalizedWebsite;
+      setSavedWebsites(updatedWebsites);
+      toast.success('Website updated in saved list');
+    } else {
+      // Add new website
+      setSavedWebsites([...savedWebsites, normalizedWebsite]);
+      toast.success('Website saved for future use');
+    }
+  };
+
+  const handleRemoveWebsite = (index: number) => {
+    setSavedWebsites(savedWebsites.filter((_, i) => i !== index));
+  };
+
+  const handleWebsiteSelect = (website: WebsiteInput) => {
+    if (isProcessing) {
+      toast.error("Please wait until the current crawl completes.");
+      return;
+    }
+    
+    // Use the handleDirectCrawl function to immediately crawl the selected website
+    handleDirectCrawl(website);
+  };
+
+  const handleWebsiteDelete = (index: number) => {
+    setSavedWebsites(savedWebsites.filter((_, i) => i !== index));
+  };
+
+  const handleStartCrawl = async () => {
+    setIsProcessing(true);
+    setCurrentStep('crawling' as CurrentStep);
+    setError(null);
+    setProgress(0);
+    setProcessingMessage("Initializing crawler...");
+    
+    try {
+      // Initialize the crawl report
+      setCrawlReport({
+        startTime: new Date().toISOString(),
+        endTime: undefined,
+        totalAttempts: 0,
+        successfulAttempts: 0,
+        failedAttempts: 0,
+        attempts: []
+      });
+      
+      // Reset any previous state
+      setResults([]);
+      setGeneratedFiles(null);
+      setCurrentlyCrawling(null);
+      
+      // Start the crawl
+      const results = await crawlWebsite(website.url);
+      
+      // Set the crawl results
+      setResults(results);
+      
+      // Update the progress
+      setProgress(100);
+      setCurrentStep('reviewing' as CurrentStep);
+      
+      // Show success message
+      toast.success(`Successfully crawled ${website.siteName}`);
+    } catch (error) {
+      console.error('Error in crawl:', error);
+      
+      setCurrentStep('error' as CurrentStep);
+      setError(error instanceof Error ? error.message : String(error));
+      
+      // Show error toast
+      toast.error('Failed to crawl website', {
+        description: error instanceof Error ? error.message : 'Unknown error occurred'
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [currentStep, setCurrentStep] = useState<CurrentStep>("idle");
+  const [results, setResults] = useState<CrawlResult[]>([]);
+  const [outputMarkdown, setOutputMarkdown] = useState("");
+  const [formData, setFormData] = useState<z.infer<typeof formSchema> | null>(null);
+  const [currentlyCrawling, setCurrentlyCrawling] = useState<string | null>(null);
+  
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      website: { url: '', siteName: '', description: '' },
+      includeScreenshots: false,
+    },
+  });
+  
+  // Enhanced progress tracking with updated type
+  const [urlProgressMap, setUrlProgressMap] = useState<Record<string, UrlProgress>>({});
+  const [processedUrls, setProcessedUrls] = useState<number>(0);
+  const [totalUrlsToProcess, setTotalUrlsToProcess] = useState<number>(0);
+  const [aiProcessedCount, setAiProcessedCount] = useState<number>(0);
+  const [detailedStatusMessage, setDetailedStatusMessage] = useState<string>("");
+  
+  // State restoration tracking
+  const [stateRestored, setStateRestored] = useState(false);
+
+  // Add state for temporary input values
+  const [tempWebsite, setTempWebsite] = useState<WebsiteInput>(initialTempWebsiteState);
+  
+  // Track if we're editing an existing website
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+
+  // Add AbortController refs
+  const crawlAbortController = useRef<AbortController | null>(null);
+  const generateAbortController = useRef<AbortController | null>(null);
+
+  // Add state for URL validation error
+  const [urlError, setUrlError] = useState<string | null>(null);
+
+  // Add state for including screenshots
+  const [includeScreenshots, setIncludeScreenshots] = useState(false);
+
+  // Add to the existing state declarations
+  const [crawlReport, setCrawlReport] = useState<CrawlReport>({
+    startTime: '',
+    endTime: undefined,
+    totalAttempts: 0,
+    successfulAttempts: 0,
+    failedAttempts: 0,
+    attempts: []
+  });
+
+  const [generatedFiles, setGeneratedFiles] = useState<{ markdown: string; json: string } | null>(null);
+  const [processingMessage, setProcessingMessage] = useState<string>("");
+  const [error, setError] = useState<string | null>(null);
+
+  // First, let's fix the removedUrls state declaration (keep only one, inside the component)
+  const [removedUrls, setRemovedUrls] = useState<Map<string, CrawlAttempt>>(new Map());
+
+  // Add handleDownload function for the llms.txt file download
+  const handleDownload = () => {
+    if (generatedFiles) {
+      const blob = new Blob([generatedFiles.markdown], { type: 'text/markdown' });
+      saveAs(blob, "llms.txt");
+    }
+  };
+
+  // Replace the existing handleRemoveUrl function with the updated version
+  const handleRemoveUrl = (url: string) => {
+    // Find the attempt being removed to save its original data
+    const attemptBeingRemoved = crawlReport.attempts.find(a => a.url === url);
+    
+    if (attemptBeingRemoved) {
+      // Save the original attempt data in the removedUrls Map
+      setRemovedUrls(prev => {
+        const newMap = new Map(prev);
+        newMap.set(url, attemptBeingRemoved);
+        return newMap;
+      });
+    }
+    
+    // Filter out the URL from results
+    setResults(prevResults => prevResults.filter(result => result.url !== url));
+    
+    // Update the crawl report
+    setCrawlReport(prev => {
+      const newAttempts = prev.attempts.map(attempt => 
+        attempt.url === url 
+          ? { ...attempt, status: 'error' as const, error: 'Manually removed by user' }
+          : attempt
+      );
+      
+      // Recalculate success counts
+      const successfulAttempts = newAttempts.filter(a => a.status === 'success').length;
+      
+      return {
+        ...prev,
+        successfulAttempts,
+        failedAttempts: prev.totalAttempts - successfulAttempts,
+        attempts: newAttempts
+      };
+    });
+    
+    toast.success(`Removed ${url} from results`);
+  };
+
+  // Add the new handleReaddUrl function
+  const handleReaddUrl = (url: string) => {
+    // Get the original attempt data from the removedUrls Map
+    const originalAttempt = removedUrls.get(url);
+    
+    if (!originalAttempt) return;
+    
+    // Remove from removedUrls Map
+    setRemovedUrls(prev => {
+      const newMap = new Map(prev);
+      newMap.delete(url);
+      return newMap;
+    });
+    
+    // Re-add to results if it was a successful crawl
+    if (originalAttempt.status === 'success') {
+      // Find the result in the original data
+      const originalResult = results.find(r => r.url === url);
+      if (originalResult) {
+        setResults(prev => [...prev, originalResult]);
+      }
+    }
+    
+    // Update the crawl report
+    setCrawlReport(prev => {
+      const newAttempts = prev.attempts.map(attempt => 
+        attempt.url === url 
+          ? { ...originalAttempt, error: undefined } // Restore original status
+          : attempt
+      );
+      
+      // Recalculate success counts
+      const successfulAttempts = newAttempts.filter(a => a.status === 'success').length;
+      
+      return {
+        ...prev,
+        successfulAttempts,
+        failedAttempts: prev.totalAttempts - successfulAttempts,
+        attempts: newAttempts
+      };
+    });
+    
+    toast.success(`Re-added ${url} to results`);
+  };
+
+  // Add state for tracking completed URLs
+  const [completedUrls, setCompletedUrls] = useState<string[]>([]);
+
+  // Progress update handler
+  const handleProgressUpdate = useCallback((progressData: UrlProgress) => {
+    console.log('[Client] Received Progress Update:', progressData);
+    
+    // Update URL-specific progress - MERGE instead of replace
+    setUrlProgressMap(prevMap => {
+      const url = progressData.metaData?.currentUrl; // This tracks the *page* being processed
+      if (!url) return prevMap;
+
+      const progress = typeof progressData.progress === 'number' ? progressData.progress : 0;
+      
+      const updatedProgress = {
+        status: progressData.status || 'loading',
+        progress: progress,
+        metaData: {
+          attempted: progressData.metaData?.attempted || 0,
+          successful: progressData.metaData?.successful || 0,
+          total: progressData.metaData?.total || progressData.metaData?.attempted || 0,
+          currentUrl: url,
+          status: progressData.metaData?.status || 'loading',
+          message: progressData.metaData?.message || 'Processing...'
+        }
+      };
+
+      // Store progress based on the specific URL being processed (might be sub-page)
+      return {
+        ...prevMap, // Merge with previous state
+        [url]: updatedProgress
+      };
+    });
+
+    // Update overall progress
+    setProgress(progressData.progress || 0);
+    
+    if (progressData.metaData?.message) {
+      setDetailedStatusMessage(progressData.metaData.message); 
+    }
+  }, []);
+
+  // Ensure renderDetailedProgress uses the imported UrlProgress type
+  const renderDetailedProgress = (progress: UrlProgress) => {
+    if (!progress.metaData || !progress.metaData.currentUrl) {
+      return <div className="mt-2 text-sm text-gray-500">Initializing...</div>;
+    }
+
+    const { currentUrl, status, attempted, successful, total } = progress.metaData;
+    const isUnlimited = total >= Number.MAX_SAFE_INTEGER;
+    const progressValue = isUnlimited ? -1 : (total > 0 ? Math.round((attempted / total) * 100) : 0); // Calculate % only if limited
+    const successRate = attempted ? Math.round((successful / attempted) * 100) : 0;
+
+    return (
+      <div className="mt-2 space-y-3">
+        {/* Main Progress Bar */}
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between text-sm">
+            <div className="font-medium">Overall Progress</div>
+            {/* Show percentage only if not unlimited */}
+            {!isUnlimited && (
+              <div className="text-gray-500">{progressValue}%</div>
+            )}
+          </div>
+          {/* Use indeterminate bar if unlimited, otherwise percentage */}
+          {isUnlimited ? (
+            <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
+              <div
+                className={`h-full animate-pulse ${status === 'error' ? 'bg-red-300' : status === 'success' ? 'bg-green-300' : 'bg-blue-300'}`}
+                style={{ width: '100%' }}
+              />
+            </div>
+          ) : (
+            <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
+              <div
+                className={`h-full transition-all duration-300 ease-in-out ${
+                  status === 'error' ? 'bg-red-500' :
+                  status === 'success' ? 'bg-green-500' :
+                  'bg-blue-500'
+                }`}
+                style={{ width: `${progressValue}%` }}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Stats Row */}
+        <div className="flex items-center justify-between text-sm text-gray-600">
+          <div>
+            {/* Show "X of Y" only if limited */}
+            {isUnlimited ? (
+              <span className="font-medium">{successful}</span>
+            ) : (
+              <><span className="font-medium">{successful}</span> of <span className="font-medium">{total}</span></>
+            )}
+             pages processed
+          </div>
+          <div>
+            Success Rate: <span className="font-medium">{successRate}%</span>
+          </div>
+        </div>
+
+        {/* Current URL - Only show if still processing */}
+        {status !== 'success' && (
+          <div className="flex items-center space-x-2 text-sm">
+            <div className="flex-shrink-0 w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+            <div className="truncate text-gray-600">
+              Processing: <span className="font-medium">{currentUrl}</span>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Add a new component for the completed URLs list
+  const CompletedUrlsList = ({ urls }: { urls: string[] }) => {
+    // Only show the last 3 completed URLs
+    const recentUrls = urls.slice(-3);
+    
+    return (
+      <div className="mt-4 space-y-2">
+        <div className="text-sm font-medium text-gray-600">Recently Completed:</div>
+        <div className="space-y-1">
+          {recentUrls.map((url, index) => (
+            <div 
+              key={url} 
+              className="text-sm text-gray-500 flex items-center space-x-2"
+            >
+              <CheckCircledIcon className="h-4 w-4 text-green-500" />
+              <span className="truncate">{url}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  // Add cancel handler
+  const handleCancelCrawl = useCallback(() => {
+    console.log("Cancel button clicked, crawl abort controller:", !!crawlAbortController.current);
+    
+    if (crawlAbortController.current) {
+      console.log("Aborting crawl...");
+      
+      // First, abort the controller to trigger any abort event listeners
+      crawlAbortController.current.abort();
+      
+      // Set UI states to show the crawl is done
+      setIsProcessing(false);
+      setCurrentlyCrawling(null);
+      setCurrentStep('idle');
+      setProcessingMessage("Crawl cancelled");
+      
+      // Show toast notification
+      toast.info('Crawling cancelled');
+      
+      // Record cancellation in the crawl report
+      setCrawlReport(prev => ({
+        ...prev,
+        endTime: new Date().toISOString()
+      }));
+      
+      // Reset the abort controller
+      crawlAbortController.current = null;
+    } else {
+      console.log("No active crawlAbortController found");
+      // If no abort controller, still reset the UI
+      setIsProcessing(false);
+      setCurrentlyCrawling(null);
+      setCurrentStep('idle');
+      toast.info('No active crawl to cancel');
+    }
+  }, []);
+
+  // Function to crawl the website
+  const crawlWebsite = async (urlToCrawl: string): Promise<CrawlResult[]> => {
+    // Create a new AbortController for this specific crawl
+    crawlAbortController.current = new AbortController();
+    const signal = crawlAbortController.current.signal;
+    
+    try {
+      // Check for Fetch API support
+      if (!window.EventSource) {
+        throw new Error("Your browser doesn't support EventSource, which is required for crawling.");
+      }
+      
+      // Set initial state
+    setCrawlReport({
+      startTime: new Date().toISOString(),
+      endTime: undefined,
+      totalAttempts: 0,
+      successfulAttempts: 0,
+      failedAttempts: 0,
+      attempts: []
+    });
+
+      // Create URL with query parameters
+      const params = new URLSearchParams();
+      params.append('url', urlToCrawl);
+      
+      // Initialize EventSource for Server-Sent Events
+      const eventSource = new EventSource(`/api/crawl?${params.toString()}`);
+      
+      console.log(`Starting SSE connection to /api/crawl for ${urlToCrawl}`);
+      
+      return new Promise((resolve, reject) => {
+        const results: CrawlResult[] = [];
+        
+        // Handle each event type
+        eventSource.addEventListener('message', (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            console.log("SSE Message received:", data.type);
+            
+            if (data.type === 'progress') {
+              // Update the progress
+              setProgress(data.progress || 0);
+              setProcessedUrls(data.attempted || 0);
+              
+              if (data.currentUrl) {
+                setCurrentlyCrawling(data.currentUrl);
+                
+                // Update the URL progress map
+                setUrlProgressMap(prev => ({
+                  ...prev,
+                  [data.currentUrl]: {
+                    status: data.status,
+                    message: data.message || ''
+                  }
+                }));
+              }
+              
+              setProcessingMessage(data.message || '');
+              
+            } else if (data.type === 'result') {
+              // Add the result to our collection
+              results.push(data.result);
+              
+              // Add to the completed URLs list
+              setCompletedUrls(prev => [...prev, data.result.url]);
+              setResults(prev => [...prev, data.result]);
+              
+              // Update crawl report
+              setCrawlReport(prev => {
+                const updatedAttempts = [...prev.attempts, {
+                  url: data.result.url,
+                  status: 'success' as const,
+                  timestamp: new Date().toISOString(),
+                  title: data.result.title,
+                  contentLength: data.result.metaData?.description?.length || 0,
+                  duration: 0
+                }];
+                
+                return {
+                  ...prev,
+                  totalAttempts: prev.totalAttempts + 1,
+                  successfulAttempts: prev.successfulAttempts + 1,
+                  attempts: updatedAttempts
+                };
+              });
+              
+            } else if (data.type === 'error') {
+              console.error("Crawl error:", data.message);
+              
+              // Update the crawl report with the error
+              const errorUrl = currentlyCrawling || "unknown";
+              
+              setCrawlReport(prev => {
+                const updatedAttempts = [...prev.attempts, {
+                  url: errorUrl,
+                  status: 'error' as const,
+                  timestamp: new Date().toISOString(),
+                  error: data.message,
+                  duration: 0
+                }];
+                
+                return {
+                  ...prev,
+                  totalAttempts: prev.totalAttempts + 1,
+                  failedAttempts: prev.failedAttempts + 1,
+                  attempts: updatedAttempts
+                };
+              });
+        
+            } else if (data.type === 'complete') {
+              // Crawl is complete
+              eventSource.close();
+              
+              // Set the end time in the crawl report
+              setCrawlReport(prev => ({
+                ...prev,
+                endTime: new Date().toISOString()
+              }));
+              
+              // Update state based on completion status
+              if (data.status === 'success') {
+                setCurrentStep('reviewing' as CurrentStep);
+                setProgress(100);
+                setProcessingMessage('Crawl completed successfully');
+                setCurrentlyCrawling(null);
+                console.log(`Crawl completed with ${results.length} results`);
+                resolve(results);
+              } else if (data.status === 'canceled') {
+                setCurrentStep('error' as CurrentStep);
+                setProcessingMessage('Crawl was canceled');
+                setCurrentlyCrawling(null);
+                resolve(results); // Still resolve with the partial results
+      } else {
+                setCurrentStep('error');
+                setProcessingMessage('Crawl encountered an error');
+                setCurrentlyCrawling(null);
+                reject(new Error('Crawl failed: ' + data.message));
+              }
+              
+              // Reset the controller since we're done
+              crawlAbortController.current = null;
+              
+              setIsProcessing(false);
+            }
+          } catch (error) {
+            console.error("Error in SSE event:", error);
+            reject(error);
+          }
+        });
+
+        // Handle connection open
+        eventSource.addEventListener('open', () => {
+          console.log("SSE connection opened");
+        });
+
+        // Handle errors
+        eventSource.addEventListener('error', (event) => {
+          console.error("SSE connection error:", event);
+          eventSource.close();
+          reject(new Error("Connection to server failed"));
+        });
+
+        // Cleanup function for aborting
+        signal.addEventListener('abort', () => {
+          console.log("Crawl aborted by user");
+          eventSource.close();
+          reject(new Error("Crawl cancelled by user"));
+        });
+      });
+    } catch (error) {
+      console.error("Error in crawlWebsite:", error);
+      throw error;
+    }
+  };
+
+  useEffect(() => {
+    // Update local storage when crawlReport changes, if it has data
+    if (crawlReport.startTime) {
+      localStorage.setItem('crawlReport', JSON.stringify(crawlReport));
+    }
+  }, [crawlReport]);
+
+  // Function to clear local storage of cached report, results, and batch jobs
+  function clearCachedData() {
+    localStorage.removeItem('crawlReport');
+    localStorage.removeItem('crawlResults');
+    // localStorage.removeItem('batchJobs'); // Remove batch jobs reference
+  }
+
+  // Update the handleDirectCrawl function to use the new handleStartCrawl function
+  const handleDirectCrawl = async (website: WebsiteInput) => {
+    if (isProcessing) {
+      toast.error("A crawl is already in progress. Please wait for it to finish.");
+      return;
+    }
+    
+    // Update the website state
+    setWebsite(website);
+    
+    // Start the crawl
+    await handleStartCrawl();
+  };
+
+  // Add stub for handleStartOver
+  const handleStartOver = () => {
+    // Reset all state to initial values
+    setIsProcessing(false);
+    setCurrentStep('idle');
+    setResults([]);
+    setOutputMarkdown('');
+    setFormData(null);
+    setCurrentlyCrawling(null);
+    setUrlProgressMap({});
+    setProcessedUrls(0);
+    setTotalUrlsToProcess(0);
+    setAiProcessedCount(0);
+    setDetailedStatusMessage('');
+    setGeneratedFiles(null);
+    setProcessingMessage('');
+    setError(null);
+    
+    // Clear any abort controllers
+    if (crawlAbortController.current) {
+      crawlAbortController.current.abort();
+      crawlAbortController.current = null;
+    }
+    if (generateAbortController.current) {
+      generateAbortController.current.abort();
+      generateAbortController.current = null;
+    }
+    
+    toast.info('Started a new session');
+  };
+
+  // Fix the handleProceedToGeneration function
+  const handleProceedToGeneration = () => {
+    // Set the current step to generating (matching the CurrentStep type)
+    setCurrentStep('generating' as CurrentStep);
+    // Implementation would go here
+    toast.info('Starting generation process');
+  };
+
+  // Add stub for handleRecrawlUrl
+  const handleRecrawlUrl = (url: string) => {
+    // Implementation would go here
+    toast.info(`Recrawling ${url}`);
+  };
+
+  // Replace showNotification calls with toast
+  const handleResume = () => {
+    // Get the cached data
+    const cachedCrawlReport = localStorage.getItem('crawlReport');
+    const cachedResults = localStorage.getItem('crawlResults');
+    
+    if (cachedCrawlReport && cachedResults) {
+      try {
+        // Parse the cached data
+        const parsedReport = JSON.parse(cachedCrawlReport);
+        const parsedResults = JSON.parse(cachedResults);
+        
+        // Update the state with the cached data
+        setCrawlReport(parsedReport);
+        setResults(parsedResults);
+        
+        // Set the current step to 'reviewing' to show the results
+        setCurrentStep('reviewing' as CurrentStep);
+        
+        // Show a notification for the successful resume
+        toast.success('Successfully resumed from the previous session.');
+      } catch (error) {
+        console.error('Failed to parse cached data:', error);
+        toast.error('Failed to resume from previous session.');
+      }
+    } else {
+      toast.error('No previous session found to resume.');
+    }
+  };
+
+  // Add stub for onSubmit
+  const onSubmit = async (values: any) => {
+    // Implementation would go here
+    console.log('Form submitted with values:', values);
+    // This would be implemented to start the crawl process
+  };
+
+  // Add dummy UrlReviewList component
+  const UrlReviewList = ({ 
+    attempts, 
+    onRemoveUrl, 
+    onReaddUrl, 
+    onRecrawlUrl, 
+    removedUrls, 
+    crawlStartTime, 
+    crawlEndTime 
+  }: { 
+    attempts: CrawlAttempt[]; 
+    onRemoveUrl: (url: string) => void;
+    onReaddUrl: (url: string) => void;
+    onRecrawlUrl: (url: string) => void;
+    removedUrls: Map<string, CrawlAttempt>;
+    crawlStartTime: string;
+    crawlEndTime?: string;
+  }) => {
+    return (
+      <div className="space-y-2">
+        {attempts.map((attempt, i) => (
+          <div key={i}>URL Review Item Placeholder</div>
+        ))}
+      </div>
+    );
+  };
+
+  // Add tabs state management
+  const [activeTab, setActiveTab] = useState("review");
+  const tabsRef = useRef(null);
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="rounded-lg border bg-card p-6">
+          <div>
+            <h2 className="text-lg font-medium">Website to Crawl</h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              Enter a website URL for AI-powered llms.txt generation
+            </p>
+          </div>
+          <WebsiteInputContainer
+            website={website}
+            onUpdateWebsite={setWebsite}
+            onSaveWebsite={handleSaveWebsite}
+            onCrawlWebsite={handleDirectCrawl}
+            disabled={isProcessing}
+          />
+        </div>
+          
+        <div className="rounded-lg border bg-card p-6">
+          <div>
+            <h2 className="text-lg font-medium">Saved Websites</h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              Quick access to your saved websites
+            </p>
+          </div>
+          <SavedWebsitesList
+            websites={savedWebsites}
+            onWebsiteSelect={handleWebsiteSelect}
+            onWebsiteDelete={handleWebsiteDelete}
+            key={`saved-websites-${savedWebsites.length}`}
+          />
+        </div>
+      </div>
+          
+      {/* Combined tabbed interface for Crawl Queue, Status and URL Review */}
+      <div className="rounded-lg border bg-card p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-medium">llms.txt Generation Workflow</h2>
+          {/* Show buttons during processing, reviewing, or completion */} 
+          {(isProcessing || currentStep === 'reviewing' || currentStep === 'complete') && (
+            <div className="flex items-center space-x-2">
+              {/* Show Start Over during processing, reviewing, or completion */} 
+              <Button 
+                variant="default"
+                onClick={handleStartOver}
+                className="h-10 px-4 shadow-sm bg-black hover:bg-gray-800 text-white"
+              >
+                Start Over
+              </Button>
+            </div>
+          )}
+        </div>
+
+        <Tabs 
+          value={activeTab} 
+          onValueChange={setActiveTab}
+          ref={tabsRef} 
+          className="w-full"
+        >
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger 
+              value="review"
+              disabled={currentStep !== 'reviewing' && !crawlReport.endTime}
+            >
+              1. Review
+            </TabsTrigger>
+            <TabsTrigger 
+              value="files"
+              disabled={!generatedFiles}
+            >
+              2. Download
+            </TabsTrigger>
+          </TabsList>
+          
+          {/* Show crawling progress outside tabs when crawling is in progress */}
+          {currentStep === 'crawling' && (
+            <div className="pt-4 space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-md font-medium">Crawling in Progress</h3>
+              <p className="text-sm text-muted-foreground">
+                    Crawling website: {formData?.website?.siteName || 'Website'}
+                  </p>
+                </div>
+                <Button 
+                  onClick={handleCancelCrawl}
+                  variant="destructive"
+                  className="h-10 px-4 shadow-sm"
+                  type="button"
+                >
+                  Cancel
+                </Button>
+              </div>
+              
+              {/* Progress Display */}
+              <div className="space-y-4 p-4 border rounded-lg bg-gray-50">
+                {/* Stats */}
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="flex flex-col p-3 bg-white rounded border">
+                    <span className="text-muted-foreground">Pages Attempted</span>
+                    <span className="text-xl font-medium">{crawlReport.totalAttempts || 0}</span>
+                  </div>
+                  <div className="flex flex-col p-3 bg-white rounded border">
+                    <span className="text-muted-foreground">Successful</span>
+                    <span className="text-xl font-medium text-green-600">{crawlReport.successfulAttempts || 0}</span>
+                  </div>
+                </div>
+                
+                {/* Current Processing URL */}
+                {currentlyCrawling && (
+                  <div className="p-3 bg-white rounded border">
+                    <div className="flex items-center">
+                      <div>
+                        <p className="text-sm text-muted-foreground mb-1">Currently Processing:</p>
+                        <div className="flex items-center space-x-2">
+                          <div className="h-2 w-2 rounded-full bg-blue-500 animate-pulse"></div>
+                          <p className="text-sm font-medium truncate">{currentlyCrawling}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Processing Message - Only show if not redundant with currentlyCrawling */}
+                {processingMessage && !processingMessage.startsWith('Processing:') && (
+                  <p className="text-sm text-muted-foreground italic">{processingMessage}</p>
+                )}
+              </div>
+              
+              {/* Recent Attempts */}
+              {crawlReport.attempts.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium">Recent Pages</h4>
+                  <div className="max-h-[300px] overflow-y-auto space-y-2">
+                    {crawlReport.attempts.slice().reverse().map((attempt, i) => (
+                      <div 
+                        key={i} 
+                        className={`flex items-center justify-between p-2 text-sm rounded border ${
+                          attempt.status === 'success' ? 'bg-green-50 border-green-100' : 
+                          attempt.status === 'error' ? 'bg-red-50 border-red-100' : 
+                          'bg-gray-50 border-gray-100'
+                        }`}
+                      >
+                        <div className="truncate flex-1 pr-2">
+                          <span className="block truncate">{attempt.url}</span>
+                        </div>
+                        <div className="flex items-center">
+                          {attempt.status === 'success' ? (
+                            <span className="flex items-center text-green-600 text-xs">
+                              <CheckCircledIcon className="h-3 w-3 mr-1" />
+                              Success
+                            </span>
+                          ) : attempt.status === 'error' ? (
+                            <span className="flex items-center text-red-600 text-xs">
+                              <CrossCircledIcon className="h-3 w-3 mr-1" />
+                              Failed
+                            </span>
+                          ) : (
+                            <span className="flex items-center text-blue-600 text-xs">
+                              <UpdateIcon className="h-3 w-3 mr-1 animate-spin" />
+                              Processing
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              </div>
+            )}
+
+          {/* Show placeholder message if not crawling and no websites */}
+          {currentStep !== 'crawling' && savedWebsites.length === 0 && currentStep !== 'reviewing' && !crawlReport.endTime && (
+            <div className="pt-4">
+              <p className="text-sm text-muted-foreground text-center py-8">
+                No websites in queue. Add a website to get started.
+              </p>
+              </div>
+            )}
+
+          <TabsContent value="review" className="pt-4">
+            {currentStep === 'reviewing' || (crawlReport.endTime && results.length > 0) ? (
+              <>
+                <div className="flex items-center justify-between mb-6">
+            <div>
+                    <h3 className="text-md font-medium">Review Crawled URLs</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Review the crawled URLs and remove any you don't want to include in the final output.
+                    </p>
+                            </div>
+                  <Button 
+                    onClick={handleProceedToGeneration}
+                    disabled={currentStep === "complete"}
+                    className={`h-10 px-6 shadow-sm text-white ${
+                      currentStep === "complete" 
+                        ? "bg-blue-400 cursor-not-allowed" 
+                        : "bg-blue-600 hover:bg-blue-700"
+                    }`}
+                  >
+                    {currentStep === "complete" ? "Already Generated" : "Proceed to Generation"}
+                                  </Button>
+                               </div>
+
+                {/* Wrap UrlReviewList in a scrollable container with border/background */}
+                <div className="max-h-[600px] overflow-y-auto pr-2 space-y-4 border rounded-md bg-white p-4 shadow-inner">
+                  <UrlReviewList 
+                    attempts={crawlReport.attempts}
+                    onRemoveUrl={handleRemoveUrl}
+                    onReaddUrl={handleReaddUrl}
+                    onRecrawlUrl={handleRecrawlUrl}
+                    removedUrls={removedUrls}
+                    crawlStartTime={crawlReport.startTime}
+                    crawlEndTime={crawlReport.endTime}
+                  />
+                </div>
+              </>
+            ) : (
+              <div className="p-6 text-center">
+                <p className="text-muted-foreground">Complete a crawl to review URLs.</p>
+            </div>
+          )}
+          </TabsContent>
+          
+          <TabsContent value="files" className="pt-4">
+            {currentStep === 'generating' ? (
+              <div className="p-6 text-center space-y-4">
+                <div className="inline-block mx-auto">
+                  <svg className="animate-spin h-8 w-8 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  </div>
+                <p className="text-blue-600 font-medium">Generating your llms.txt file...</p>
+                <p className="text-muted-foreground">This may take a few moments.</p>
+                <div className="max-w-md mx-auto h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <div className="h-full bg-blue-600 transition-all duration-500" style={{ width: `${progress}%` }}></div>
+            </div>
+                    </div>
+            ) : generatedFiles ? (
+              <>
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h3 className="text-md font-medium">Generated llms.txt</h3>
+                      <p className="text-sm text-muted-foreground">
+                      Your generated llms.txt file is ready for download.
+                      </p>
+                    </div>
+                  <Button 
+                    onClick={handleDownload} 
+                    className="bg-green-600 hover:bg-green-700 text-white h-10 px-6 shadow-sm flex items-center gap-2"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Download llms.txt
+                  </Button>
+              </div>
+
+              <div className="space-y-4">
+                  <div className="max-h-[500px] overflow-y-auto p-4 rounded bg-gray-50 text-sm font-mono whitespace-pre-wrap border">
+                    {generatedFiles.markdown}
+                </div>
+              </div>
+              </>
+            ) : (
+              <div className="p-6 text-center">
+                <p className="text-muted-foreground">
+                  Complete the crawling and reviewing process to generate your llms.txt file.
+                </p>
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
+              </div>
+
+      {/* Show error state if something went wrong */}
+      {error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-6">
+          <div className="flex items-center text-red-700 mb-2">
+            <ExclamationTriangleIcon className="h-5 w-5 mr-2" />
+            <h2 className="text-lg font-medium">Error</h2>
+            </div>
+          <p className="text-sm text-red-600 mb-2">{error}</p>
+          <div className="mt-3 flex justify-end">
+            <Button
+              onClick={handleStartOver}
+              variant="outline" 
+              size="sm"
+              className="text-sm"
+            >
+              Try Another Website
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+} // End of CrawlerForm component 

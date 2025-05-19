@@ -10,10 +10,10 @@ export default function SetupPage() {
       {/* Main Content */}
       <section className="py-8">
         <div className="container max-w-4xl mx-auto px-4">
-          <h1 className="text-3xl font-bold text-gray-900 mb-6">Setup Instructions</h1>
+          <h1 className="text-3xl font-bold  mb-6">Setup Instructions</h1>
           
           <div className="bg-blue-50 rounded-lg border border-blue-200 p-8 mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">API Setup Required</h2>
+            <h2 className="text-2xl font-bold  mb-4">API Setup Required</h2>
             <div className="text-gray-700">
               <p className="mb-4">
                 This open-source tool requires your own OpenAI API key to function:
@@ -30,13 +30,13 @@ export default function SetupPage() {
             </div>
           </div>
 
-          <div className="bg-white shadow-sm rounded-lg border border-gray-200 p-6 mb-8">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Detailed Setup Instructions</h2>
+          <div className="shadow-sm rounded-lg border border-gray-200 p-6 mb-8">
+            <h2 className="text-xl font-bold  mb-4">Detailed Setup Instructions</h2>
             
             <div className="space-y-6">
               <div>
                 <h3 className="text-lg font-semibold mb-2">1. Clone the Repository</h3>
-                <div className="bg-gray-50 p-3 rounded-md font-mono text-sm">
+                <div className=" p-3 rounded-md font-mono text-sm">
                   git clone https://github.com/rdyplayerB/ai-llmstxt-generator.git<br />
                   cd ai-llmstxt-generator
                 </div>
@@ -44,7 +44,7 @@ export default function SetupPage() {
               
               <div>
                 <h3 className="text-lg font-semibold mb-2">2. Install Dependencies</h3>
-                <div className="bg-gray-50 p-3 rounded-md font-mono text-sm">
+                <div className=" p-3 rounded-md font-mono text-sm">
                   npm install
                 </div>
               </div>
@@ -52,7 +52,7 @@ export default function SetupPage() {
               <div>
                 <h3 className="text-lg font-semibold mb-2">3. Create Environment File</h3>
                 <p className="mb-2">Create a file named <code>.env.local</code> in the root directory with your OpenAI API key:</p>
-                <div className="bg-gray-50 p-3 rounded-md font-mono text-sm">
+                <div className=" p-3 rounded-md font-mono text-sm">
                   OPENAI_API_KEY=your_api_key_here
                 </div>
                 <p className="mt-2 text-sm text-gray-600">You can get your API key from the <a href="https://platform.openai.com/account/api-keys" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">OpenAI platform</a>.</p>
@@ -60,7 +60,7 @@ export default function SetupPage() {
               
               <div>
                 <h3 className="text-lg font-semibold mb-2">4. Start the Development Server</h3>
-                <div className="bg-gray-50 p-3 rounded-md font-mono text-sm">
+                <div className=" p-3 rounded-md font-mono text-sm">
                   npm run dev
                 </div>
                 <p className="mt-2 text-sm text-gray-600">The application will be available at <code>http://localhost:3000</code>.</p>

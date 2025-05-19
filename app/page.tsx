@@ -4,16 +4,16 @@ import Footer from "./components/ui/Footer";
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-white">
+    <main className="min-h-screen ">
       {/* Navigation Bar */}
       <Navigation />
 
       {/* Main Content */}
       <section className="py-4 pt-8">
         <div className="container max-w-6xl mx-auto px-4">
-          <div className="bg-white shadow-sm rounded-lg border border-gray-200 p-6 mb-12">
+          <div className="shadow-sm rounded-lg border border-gray-200 p-6 mb-12">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold text-gray-900">Create Your AI-Optimized llms.txt File</h2>
+              <h2 className="text-xl font-semibold">Create Your AI-Optimized llms.txt File</h2>
               <div className="flex items-center gap-6">
                 <div id="test-mode-container" className="min-w-[180px]"></div>
               </div>
@@ -21,13 +21,13 @@ export default function Home() {
             <CrawlerForm />
           </div>
 
-          <h2 className="text-xl font-semibold text-gray-900 mb-6 mt-8">
+          <h2 className="text-xl font-semibold  mb-6 mt-8">
             About llms.txt
           </h2>
 
           <div className="grid md:grid-cols-3 gap-6 mb-12">
-            <div className="bg-white shadow-sm rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow">
-              <h3 className="text-base font-medium text-gray-900 mb-3">What is llms.txt?</h3>
+            <div className="shadow-sm rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow">
+              <h3 className="text-base font-medium  mb-3">What is llms.txt?</h3>
               <div className="text-sm text-gray-600">
                 <p className="mb-2">
                   The llms.txt file is a new open standard that helps AI models better understand and interact with your website's content. Similar to how robots.txt guides search engines, llms.txt provides a curated index of your most important pages. Visit <a href="https://llmstxthub.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 hover:underline">llmstxthub.com</a> to learn more about the standard.
@@ -42,8 +42,8 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="bg-white shadow-sm rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow">
-              <h3 className="text-base font-medium text-gray-900 mb-3">Benefits</h3>
+            <div className="shadow-sm rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow">
+              <h3 className="text-base font-medium  mb-3">Benefits</h3>
               <ul className="list-disc pl-4 text-sm text-gray-600 space-y-1">
                 <li>Predictable AI Discovery - Find and prioritize key content</li>
                 <li>Structured Content Signals - Clear training indicators</li>
@@ -52,8 +52,8 @@ export default function Home() {
               </ul>
             </div>
 
-            <div className="bg-white shadow-sm rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow">
-              <h3 className="text-base font-medium text-gray-900 mb-3">How the Generator Works</h3>
+            <div className="shadow-sm rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow">
+              <h3 className="text-base font-medium  mb-3">How the Generator Works</h3>
               <ol className="list-decimal pl-4 text-sm text-gray-600 space-y-1">
                 <li>Input your website URL</li>
                 <li>The tool crawls your content</li>

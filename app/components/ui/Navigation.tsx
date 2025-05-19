@@ -21,15 +21,15 @@ export default function Navigation() {
             <Link 
               href="/setup" 
               className={pathname === "/setup" 
-                ? "text-gray-900 font-medium" 
-                : "text-gray-600 hover:text-gray-900"
+                ? " font-medium" 
+                : "text-gray-600 hover:"
               }
             >
               Setup
             </Link>
             <Link 
               href="https://github.com/rdyplayerB/ai-llmstxt-generator" 
-              className="text-gray-600 hover:text-gray-900"
+              className="text-gray-600 hover:"
               target="_blank"
               rel="noopener noreferrer"
             >

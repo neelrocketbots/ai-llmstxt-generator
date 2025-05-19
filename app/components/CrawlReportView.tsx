@@ -32,7 +32,7 @@ export const CrawlReportView = ({ report }: { report: CrawlReport }) => {
       : 0;
   
   return (
-    <div className="mt-4 border border-gray-200 rounded-lg p-4 bg-gray-50">
+    <div className="mt-4 border border-gray-200 rounded-lg p-4 ">
       <h4 className="font-medium mb-2">Crawl Report Summary</h4>
       <div className="space-y-2 text-sm">
         <div className="flex justify-between text-gray-600">

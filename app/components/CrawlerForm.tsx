@@ -432,7 +432,7 @@ const UrlReviewList = ({
   return (
     <div className="space-y-4">
       {/* Summary stats */}
-      <div className="flex items-center justify-between mb-4 p-3 bg-gray-50 rounded-lg">
+      <div className="flex items-center justify-between mb-4 p-3  rounded-lg">
         <div className="text-sm">
           <span className="font-medium">{totalUrls}</span> total URLs 
           <span className="mx-2">•</span>
@@ -538,7 +538,7 @@ const UrlReviewList = ({
       {/* URL Table */}
       <div className="border rounded-lg overflow-hidden">
         <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+          <thead className="">
             <tr>
               <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 URL
@@ -551,12 +551,12 @@ const UrlReviewList = ({
               </th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="divide-y divide-gray-200">
             {paginatedAttempts.length > 0 ? (
               paginatedAttempts.map((attempt) => (
-                <tr key={attempt.url} className="hover:bg-gray-50">
+                <tr key={attempt.url} className="hover:">
                   <td className="px-4 py-2">
-                    <div className="text-sm font-medium text-gray-900 truncate max-w-md" title={attempt.url}>
+                    <div className="text-sm font-medium  truncate max-w-md" title={attempt.url}>
                       {attempt.url}
                     </div>
                   </td>
@@ -611,13 +611,13 @@ const UrlReviewList = ({
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between px-4 py-3 bg-white border rounded-lg">
+        <div className="flex items-center justify-between px-4 py-3 border rounded-lg">
           <div className="flex-1 flex justify-between sm:hidden">
             <button
               onClick={prevPage}
               disabled={currentPage === 1}
               className={`relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-md ${
-                currentPage === 1 ? 'text-gray-300 bg-gray-50' : 'text-gray-700 bg-white hover:bg-gray-50'
+                currentPage === 1 ? 'text-gray-300 ' : 'text-gray-700 hover:'
               }`}
             >
               Previous
@@ -626,7 +626,7 @@ const UrlReviewList = ({
               onClick={nextPage}
               disabled={currentPage === totalPages}
               className={`ml-3 relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-md ${
-                currentPage === totalPages ? 'text-gray-300 bg-gray-50' : 'text-gray-700 bg-white hover:bg-gray-50'
+                currentPage === totalPages ? 'text-gray-300 ' : 'text-gray-700 hover:'
               }`}
             >
               Next
@@ -646,7 +646,7 @@ const UrlReviewList = ({
                   onClick={prevPage}
                   disabled={currentPage === 1}
                   className={`relative inline-flex items-center px-2 py-2 rounded-l-md text-sm font-medium ${
-                    currentPage === 1 ? 'text-gray-300 bg-gray-50' : 'text-gray-500 bg-white hover:bg-gray-50'
+                    currentPage === 1 ? 'text-gray-300 ' : 'text-gray-500 hover:'
                   }`}
                 >
                   <span className="sr-only">Previous</span>
@@ -673,7 +673,7 @@ const UrlReviewList = ({
                       className={`relative inline-flex items-center px-4 py-2 text-sm font-medium ${
                         currentPage === pageNum 
                           ? 'z-10 bg-blue-50 border-blue-500 text-blue-600' 
-                          : 'bg-white text-gray-500 hover:bg-gray-50'
+                          : 'text-gray-500 hover:'
                       }`}
                     >
                       {pageNum}
@@ -685,7 +685,7 @@ const UrlReviewList = ({
                   onClick={nextPage}
                   disabled={currentPage === totalPages}
                   className={`relative inline-flex items-center px-2 py-2 rounded-r-md text-sm font-medium ${
-                    currentPage === totalPages ? 'text-gray-300 bg-gray-50' : 'text-gray-500 bg-white hover:bg-gray-50'
+                    currentPage === totalPages ? 'text-gray-300 ' : 'text-gray-500 hover:'
                   }`}
                 >
                   <span className="sr-only">Next</span>
@@ -1208,8 +1208,8 @@ export default function CrawlerForm() {
             <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
               <div
                 className={`h-full transition-all duration-300 ease-in-out ${
-                  status === 'error' ? 'bg-red-500' :
-                  status === 'success' ? 'bg-green-500' :
+                  status === 'error' ? 'text-red-500' :
+                  status === 'success' ? 'text-green-500' :
                   'bg-blue-500'
                 }`}
                 style={{ width: `${progressValue}%` }}
@@ -1900,9 +1900,9 @@ export default function CrawlerForm() {
             <div className="flex items-center space-x-2">
               {/* Show Start Over during processing, reviewing, or completion */} 
               <Button 
-                variant="default"
+                variant="outline"
                 onClick={handleStartOver}
-                className="h-10 px-4 shadow-sm bg-black hover:bg-gray-800 text-white"
+                className="h-10 px-4 shadow-sm hover:bg-gray-800 "
               >
                 Start Over
               </Button>
@@ -1952,14 +1952,14 @@ export default function CrawlerForm() {
               </div>
               
               {/* Progress Display */}
-              <div className="space-y-4 p-4 border rounded-lg bg-gray-50">
+              <div className="space-y-4 p-4 border rounded-lg ">
                 {/* Stats */}
                 <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div className="flex flex-col p-3 bg-white rounded border">
+                  <div className="flex flex-col p-3 rounded border">
                     <span className="text-muted-foreground">Pages Attempted</span>
                     <span className="text-xl font-medium">{crawlReport.totalAttempts || 0}</span>
                   </div>
-                  <div className="flex flex-col p-3 bg-white rounded border">
+                  <div className="flex flex-col p-3 rounded border">
                     <span className="text-muted-foreground">Successful</span>
                     <span className="text-xl font-medium text-green-600">{crawlReport.successfulAttempts || 0}</span>
                   </div>
@@ -1967,7 +1967,7 @@ export default function CrawlerForm() {
                 
                 {/* Current Processing URL */}
                 {currentlyCrawling && (
-                  <div className="p-3 bg-white rounded border">
+                  <div className="p-3 rounded border">
                     <div className="flex items-center">
                       <div>
                         <p className="text-sm text-muted-foreground mb-1">Currently Processing:</p>
@@ -1995,9 +1995,9 @@ export default function CrawlerForm() {
                       <div 
                         key={i} 
                         className={`flex items-center justify-between p-2 text-sm rounded border ${
-                          attempt.status === 'success' ? 'bg-green-50 border-green-100' : 
-                          attempt.status === 'error' ? 'bg-red-50 border-red-100' : 
-                          'bg-gray-50 border-gray-100'
+                          attempt.status === 'success' ? 'text-green-600 border-green-100' : 
+                          attempt.status === 'error' ? 'text-red-600 border-red-100' : 
+                          'text-blue-600 border-gray-100'
                         }`}
                       >
                         <div className="truncate flex-1 pr-2">
@@ -2051,7 +2051,7 @@ export default function CrawlerForm() {
                   <Button 
                     onClick={handleProceedToGeneration}
                     disabled={currentStep === "complete"}
-                    className={`h-10 px-6 shadow-sm text-white ${
+                    className={`h-10 px-6 shadow-sm ${
                       currentStep === "complete" 
                         ? "bg-blue-400 cursor-not-allowed" 
                         : "bg-blue-600 hover:bg-blue-700"
@@ -2062,7 +2062,7 @@ export default function CrawlerForm() {
                                </div>
 
                 {/* Wrap UrlReviewList in a scrollable container with border/background */}
-                <div className="max-h-[600px] overflow-y-auto pr-2 space-y-4 border rounded-md bg-white p-4 shadow-inner">
+                <div className="max-h-[600px] overflow-y-auto pr-2 space-y-4 border rounded-md p-4 shadow-inner">
                   <UrlReviewList 
                     attempts={crawlReport.attempts}
                     onRemoveUrl={handleRemoveUrl}
@@ -2107,7 +2107,7 @@ export default function CrawlerForm() {
                     </div>
                   <Button 
                     onClick={handleDownload} 
-                    className="bg-green-600 hover:bg-green-700 text-white h-10 px-6 shadow-sm flex items-center gap-2"
+                    className="bg-green-600 hover:bg-green-700 h-10 px-6 shadow-sm flex items-center gap-2"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -2117,7 +2117,7 @@ export default function CrawlerForm() {
               </div>
 
               <div className="space-y-4">
-                  <div className="max-h-[500px] overflow-y-auto p-4 rounded bg-gray-50 text-sm font-mono whitespace-pre-wrap border">
+                  <div className="max-h-[500px] overflow-y-auto p-4 rounded  text-sm font-mono whitespace-pre-wrap border">
                     {generatedFiles.markdown}
                 </div>
               </div>

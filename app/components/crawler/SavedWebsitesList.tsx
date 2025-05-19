@@ -28,10 +28,10 @@ export function SavedWebsitesList({
       {websites.map((website, index) => (
         <div
           key={index}
-          className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200"
+          className="flex items-center justify-between p-3  rounded-lg border border-gray-200"
         >
           <div className="flex-1 min-w-0 mr-4">
-            <p className="font-medium text-gray-900 truncate">
+            <p className="font-medium  truncate">
               {website.siteName}
             </p>
             <p className="text-sm text-gray-500 truncate">{website.url}</p>

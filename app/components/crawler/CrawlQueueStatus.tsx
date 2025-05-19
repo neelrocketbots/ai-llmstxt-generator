@@ -118,9 +118,9 @@ export function CrawlQueueStatus({
         }
 
         return (
-          <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+          <div key={index} className="flex items-center justify-between p-3  rounded-lg">
             <div className="flex-1 min-w-0 mr-4">
-              <p className="text-sm font-medium text-gray-900 truncate">
+              <p className="text-sm font-medium  truncate">
                 {website.siteName}
               </p>
               <p className="text-xs text-gray-500 truncate">{normalizedUrl}</p>
@@ -147,7 +147,7 @@ export function CrawlQueueStatus({
       {websites.length > 0 && !isProcessing && (
         <Button 
           onClick={onStartCrawl}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white h-10 shadow-sm flex items-center justify-center gap-2"
+          className="w-full bg-blue-600 hover:bg-blue-700 h-10 shadow-sm flex items-center justify-center gap-2"
           disabled={isProcessing}
         >
           <CheckCircledIcon className="h-4 w-4" />

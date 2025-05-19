@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
-import { UrlProgress } from '@/lib/types';
-import { MAX_URLS_TO_PROCESS } from '@/lib/constants';
+import { UrlProgress } from '../../lib/types';
+import { MAX_URLS_TO_PROCESS } from '../../lib/constants';
 
 export function useCrawlProgress() {
   const [urlProgressMap, setUrlProgressMap] = useState<Record<string, UrlProgress>>({});

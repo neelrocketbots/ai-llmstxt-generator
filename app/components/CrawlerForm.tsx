@@ -56,7 +56,7 @@ import { WebsiteInputContainer } from './crawler/WebsiteInput/WebsiteInputContai
 
 // Restore test mode constants that were accidentally removed
 const DEFAULT_TEST_MODE = false; // Always default to Full Mode
-const TEST_MODE_MAX_URLS = 5; // Test mode limit
+const TEST_MODE_MAX_URLS = 100; // Test mode limit
 const FULL_MODE_MAX_URLS = Infinity; // No limit for full mode
 
 // Use a simple checkbox implementation for now

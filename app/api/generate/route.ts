@@ -101,7 +101,7 @@ Be concise but informative.
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages,
-      max_tokens: 150,
+      max_tokens: 1500,
       temperature: 0.7,
     });
 

@@ -40,7 +40,7 @@ export function TestModeToggle({ isTestMode, setIsTestMode }: TestModeToggleProp
             <InfoIcon className="h-4 w-4 text-slate-500" />
           </TooltipTrigger>
           <TooltipContent side="bottom">
-            <p>Test Mode: Limits crawling to 5 URLs per website for testing purposes</p>
+            <p>Test Mode: Limits crawling to 100 URLs per website for testing purposes</p>
             <p>When unchecked (Full Mode): No crawl limit - crawls entire websites</p>
           </TooltipContent>
         </Tooltip>

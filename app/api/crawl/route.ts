@@ -24,7 +24,7 @@ export const maxDuration = 120; // Extend max duration to 120 seconds
 
 // Maximum number of URLs to process per domain
 const MAX_URLS_TO_PROCESS = Infinity; // No limit for full mode
-const TEST_MODE_MAX_URLS = 5; // Strict limit for test mode - will not process more than this
+const TEST_MODE_MAX_URLS = 100; // Strict limit for test mode - will not process more than this
 const CONCURRENT_TABS = 3; // Max number of pages to process in parallel
 const PAGE_TIMEOUT = 30000; // 30 seconds timeout for page load
 
